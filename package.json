@@ -1,7 +1,7 @@
 {
-  "name": "boilermaker",
+  "name": "audio-visualizer",
   "version": "1.0.0",
-  "description": "Some boilerplate code to get you started - get shakin'!",
+  "description": "Let's see what that music looks like!",
   "engines": {
     "node": ">= 7.0.0"
   },
@@ -57,7 +57,9 @@
     "redux-logger": "^2.8.1",
     "redux-thunk": "^2.3.0",
     "sequelize": "^4.38.0",
-    "socket.io": "^2.1.1"
+    "socket.io": "^2.1.1",
+    "three": "^0.100.0",
+    "three-orbit-controls": "^82.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.0.0-beta.55",
