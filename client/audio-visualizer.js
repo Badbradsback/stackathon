@@ -1,9 +1,44 @@
 const THREE = require('three')
+const CANNON = require('cannon')
 let OrbitControls = require('three-orbit-controls')(THREE)
+
+const SPHERE_AMOUNT = 1
 
 /*     SCENE      */
 const renderVisualizer = () => {
   let scene = new THREE.Scene()
+
+  //   PHYSICS SETUP
+  let world = new CANNON.World()
+  world.gravity.set(0, 0, -9.82)
+
+  let sphereBodyArray = []
+  for (let i = 0; i < SPHERE_AMOUNT; i++) {
+    sphereBodyArray.push(
+      new CANNON.Body({
+        mass: 5,
+        position: new CANNON.Vec3(
+          Math.random() * 20,
+          Math.random() * 20,
+          40 + Math.random() * 50
+        ),
+        shape: new CANNON.Sphere(2)
+      })
+    )
+    sphereBodyArray[i].linearDamping = 0.05
+    world.addBody(sphereBodyArray[i])
+  }
+
+  let material1 = new CANNON.Material()
+  let groundBody = new CANNON.Body({
+    mass: 0, // mass == 0 makes the body static
+    material: material1
+  })
+  let groundShape = new CANNON.Plane()
+  groundBody.addShape(groundShape)
+  world.addBody(groundBody)
+
+  let fixedTimeStep = 1.0 / 60.0 // seconds
 
   /*    CAMERA     */
   let camera = new THREE.PerspectiveCamera(
@@ -13,8 +48,9 @@ const renderVisualizer = () => {
     2000 // Far clipping pane
   )
 
-  camera.position.set(0, 60, 60)
-  camera.lookAt(new THREE.Vector3(0, 15, 0))
+  camera.position.set(0, -60, 60)
+  //camera.rotation.y = Math.PI / 4;
+  camera.lookAt(scene.position)
 
   let controls = new OrbitControls(camera)
 
@@ -87,74 +123,45 @@ const renderVisualizer = () => {
   let planeGeometry1 = new THREE.PlaneGeometry(1000, 1000, 20, 20)
   let planeMaterial = new THREE.MeshLambertMaterial({
     color: 0xff5d00,
-    side: THREE.DoubleSide,
-    wireframe: true
+    side: THREE.DoubleSide
   })
   let plane = new THREE.Mesh(planeGeometry1, planeMaterial)
-  plane.rotation.x = -0.5 * Math.PI
-  plane.position.set(0, 5, -10)
+  plane.position.set(0, 0, -5)
   scene.add(plane)
 
+  let groundMaterial = new CANNON.Material()
+  let ground = new CANNON.ContactMaterial(groundMaterial, planeMaterial, {
+    friction: 0.0,
+    restitution: 0.7
+  })
+  world.addContactMaterial(ground)
+
   /*    GEOMETRY    */
-  // A simple cone mesh
-  let shapeOne = new THREE.Mesh(
-    new THREE.ConeGeometry(10, 30, 60),
-    new THREE.MeshStandardMaterial({
-      color: 0xff0051,
-      metalness: 0,
-      roughness: 0.8
-    })
-  )
-  shapeOne.position.y += 40
-  shapeOne.rotateZ(Math.PI / 3)
-  shapeOne.castShadow = true
-  scene.add(shapeOne)
 
-  // Add a second shape
-  let shapeTwo = new THREE.Mesh(
-    new THREE.OctahedronGeometry(5, 1),
-    new THREE.MeshStandardMaterial({
-      color: 0x47689b,
-      metalness: 0,
-      roughness: 0.8,
-      wireframe: true
-    })
-  )
-  shapeTwo.position.y += 15
-  shapeTwo.position.x += 35
-  shapeTwo.rotateZ(Math.PI / 5)
-  shapeTwo.castShadow = true
-  scene.add(shapeTwo)
-
-  // Add a third shape
-  let shapeThree = new THREE.Mesh(
-    new THREE.BoxGeometry(10, 10, 12),
-    new THREE.MeshStandardMaterial({
-      color: 0x87281c,
-      metalness: 0,
-      roughness: 0.8
-    })
-  )
-  shapeThree.position.y += 15
-  shapeThree.position.x += -35
-  shapeThree.castShadow = true
-  scene.add(shapeThree)
+  let sphereMeshArray = []
+  for (let i = 0; i < SPHERE_AMOUNT; i++) {
+    var geometry = new THREE.SphereGeometry(5, 32, 32)
+    var material = new THREE.MeshBasicMaterial({color: 0xffff00})
+    sphereMeshArray.push(new THREE.Mesh(geometry, material))
+    sphereMeshArray[i].castShadow = true
+    scene.add(sphereMeshArray[i])
+  }
 
   /*     KEY CONTROLS      */
   document.body.addEventListener('keydown', keyPressed)
   function keyPressed(e) {
     switch (e.keyCode) {
       case 87:
-        shapeOne.position.y += 1
+        sphereBodyArray[0].position.y += 1
         break
       case 83:
-        shapeOne.position.y -= 1
+        sphereBodyArray[0].position.y -= 1
         break
       case 65:
-        shapeOne.position.x -= 1
+        sphereBodyArray[0].position.x -= 1
         break
       case 68:
-        shapeOne.position.x += 1
+        sphereBodyArray[0].position.x += 1
         break
     }
     e.preventDefault()
@@ -174,37 +181,54 @@ const renderVisualizer = () => {
   function animate() {
     requestAnimationFrame(animate)
     frequencyData = analyser.getAverageFrequency()
+    world.step(fixedTimeStep)
+
+    for (let i = 0; i < SPHERE_AMOUNT; i++) {
+      sphereMeshArray[i].position.x = sphereBodyArray[i].position.x
+      sphereMeshArray[i].position.y = sphereBodyArray[i].position.y
+      sphereMeshArray[i].position.z = sphereBodyArray[i].position.z
+      sphereMeshArray[i].quaternion.x = sphereBodyArray[i].quaternion.x
+      sphereMeshArray[i].quaternion.y = sphereBodyArray[i].quaternion.y
+      sphereMeshArray[i].quaternion.z = sphereBodyArray[i].quaternion.z
+      sphereMeshArray[i].quaternion.w = sphereBodyArray[i].quaternion.w
+    }
 
     /*    Collision Detection     */
-    for (let i = 0; i < shapeOne.geometry.vertices.length; i++) {
-      let localVertex = shapeOne.geometry.vertices[i].clone()
-      let globalVertex = localVertex.applyMatrix4(shapeOne.matrix)
-      let directionVector = globalVertex.sub(shapeOne.position)
+    // for (let i = 0; i < sphereMeshArray[0].geometry.vertices.length; i++) {
+    //   let localVertex = sphereMeshArray[0].geometry.vertices[i].clone()
+    //   let globalVertex = localVertex.applyMatrix4(sphereMeshArray[0].matrix)
+    //   let directionVector = globalVertex.sub(sphereMeshArray[0].position)
 
-      let ray = new THREE.Raycaster(
-        shapeOne.position,
-        directionVector.clone().normalize()
-      )
-      let collisionResults = ray.intersectObjects(scene.children)
-      if (
-        collisionResults.length > 0 &&
-        collisionResults[0].distance < directionVector.length()
-      ) {
-        console.log('-------COLLISION------')
-      }
-    }
+    //   let ray = new THREE.Raycaster(
+    //     sphereMeshArray[0].position,
+    //     directionVector.clone().normalize()
+    //   )
+    //   let collisionResults = ray.intersectObjects(scene.children)
+    //   if (
+    //     collisionResults.length > 0 &&
+    //     collisionResults[0].distance < directionVector.length()
+    //   ) {
+    //     console.log('-------COLLISION------')
+    //   }
+    // }
 
     /*      Plane Music Transformations     */
     let vertices
+    let prevHigh = 0
     mountainVertices.forEach(index => {
       vertices = plane.geometry.vertices
-      if (frequencyData > 80) {
-        vertices[index].z += frequencyData * 0.08
-      } else if (frequencyData > 40) {
-        vertices[index].z += frequencyData * 0.04
-      } else if (vertices[index].z > -20) {
-        vertices[index].z -= frequencyData * 0.2
+      if (
+        frequencyData > 80 &&
+        frequencyData >= prevHigh &&
+        vertices[index].z < 130
+      ) {
+        vertices[index].z += frequencyData * 0.05
+      } else if (frequencyData > 40 && frequencyData >= prevHigh) {
+        vertices[index].z -= frequencyData * 0.03
+      } else if (vertices[index].z > 0) {
+        vertices[index].z -= frequencyData * 0.1
       }
+      prevHigh = frequencyData
     })
     //console.log(mountainVertices);
     plane.geometry.verticesNeedUpdate = true
