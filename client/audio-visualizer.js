@@ -2,7 +2,7 @@ const THREE = require('three')
 const CANNON = require('cannon')
 let OrbitControls = require('three-orbit-controls')(THREE)
 
-const GRID_SIZE = 25
+const GRID_SIZE = 18
 
 const songs = [
   '/music/big_changes.mp3',
@@ -46,7 +46,7 @@ const renderVisualizer = () => {
 
   //   PHYSICS SETUP
   let world = new CANNON.World()
-  world.gravity.set(0, 0, -40)
+  world.gravity.set(0, 0, -10)
 
   let cubeBodyArray = []
   let cubeMeshArray = []
@@ -158,7 +158,11 @@ const renderVisualizer = () => {
     let shape = new CANNON.Box(new CANNON.Vec3(8, 8, 8))
     let body = new CANNON.Body({mass: 100})
     body.addShape(shape)
-    body.position.set(Math.random() * 40 - 20, 0, 80)
+    body.position.set(
+      Math.random() * 40 - 20,
+      Math.random() * 20,
+      80 + Math.random() * 200
+    )
     world.addBody(body)
     cubeBodyArray.push(body)
 
@@ -187,8 +191,8 @@ const renderVisualizer = () => {
 
   /*      LIGHTS     */
   // Add an ambient lights
-  let ambientLight = new THREE.AmbientLight(0xffffff, 0.4)
-  scene.add(ambientLight)
+  // let ambientLight = new THREE.AmbientLight(0xffffff, 0.4)
+  // scene.add(ambientLight)
 
   // Add a point light that will cast shadows
   let pointLight = new THREE.PointLight(0xffffff, 1)
