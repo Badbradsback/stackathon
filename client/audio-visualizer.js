@@ -2,7 +2,7 @@ const THREE = require('three')
 const CANNON = require('cannon')
 let OrbitControls = require('three-orbit-controls')(THREE)
 
-const GRID_SIZE = 18
+const GRID_SIZE = 20
 
 const songs = [
   '/music/big_changes.mp3',
@@ -25,12 +25,14 @@ const colors = [
   0xff7733,
   0xff8333,
   0xff8933,
-  0xff9333,
-  0xff9733,
-  0xffa533,
+  0xff9433,
+  0xff9755,
+  0xffa563,
   0xffa973,
   0xffb333,
-  0xffc863
+  0xffc863,
+  0xffd563,
+  0xffe397
 ]
 
 /*     SCENE      */
@@ -39,7 +41,7 @@ const renderVisualizer = () => {
 
   //   PHYSICS SETUP
   let world = new CANNON.World()
-  world.gravity.set(0, 0, -20)
+  world.gravity.set(0, 0, -40)
 
   let cubeBodyArray = []
   let cubeMeshArray = []
@@ -64,8 +66,7 @@ const renderVisualizer = () => {
     0.1, // Near clipping pane
     400 // Far clipping pane
   )
-
-  camera.position.set(0, -120, 60)
+  camera.position.set(0, -140, 60)
   //camera.rotation.y = Math.PI / 4;
   camera.lookAt(scene.position)
 
@@ -164,7 +165,11 @@ const renderVisualizer = () => {
     })
     tempBox = new THREE.Mesh(boxGeometry, material)
     tempBox.castShadow = true
-    tempBox.position.set(Math.random() * 20 - 10, Math.random() * 10, 80)
+    tempBox.position.set(
+      Math.random() * 40 - 20,
+      Math.random() * 20,
+      80 + Math.random() * 200
+    )
     scene.add(tempBox)
     cubeMeshArray.push(tempBox)
   }
@@ -230,7 +235,7 @@ const renderVisualizer = () => {
     world.step(fixedTimeStep)
 
     // Update ground to push up objects
-    world.bodies[0].position.z = analyser.getAverageFrequency() * 0.22
+    world.bodies[0].position.z = analyser.getAverageFrequency() * 0.24
 
     for (let i = 0; i < boxBodyArray.length; i++) {
       boxBodyArray[i].position.z =
