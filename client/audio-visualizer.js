@@ -2,8 +2,36 @@ const THREE = require('three')
 const CANNON = require('cannon')
 let OrbitControls = require('three-orbit-controls')(THREE)
 
-const SPHERE_AMOUNT = 1
-const GRID_SIZE = 10
+const GRID_SIZE = 18
+
+const songs = [
+  '/music/big_changes.mp3',
+  '/music/trash_panda.mp3',
+  '/music/moon.mp3',
+  '/music/kronk',
+  '/music/that_way.mp3'
+]
+
+const colors = [
+  0xff3333,
+  0xff3380,
+  0xff4463,
+  0xff4593,
+  0xff5633,
+  0xff5733,
+  0xff6833,
+  0xff6933,
+  0xff7433,
+  0xff7733,
+  0xff8333,
+  0xff8933,
+  0xff9333,
+  0xff9733,
+  0xffa533,
+  0xffa973,
+  0xffb333,
+  0xffc863
+]
 
 /*     SCENE      */
 const renderVisualizer = () => {
@@ -11,12 +39,7 @@ const renderVisualizer = () => {
 
   //   PHYSICS SETUP
   let world = new CANNON.World()
-  //world.broadphase = new CANNON.NaiveBroadphase();
-  world.gravity.set(0, 0, -9.82)
-  // world.solver.tolerance = 0.001;
-
-  //   world.defaultContactMaterial.contactEquationStiffness = 5e6;
-  //   world.defaultContactMaterial.contactEquationRelaxation = 3;
+  world.gravity.set(0, 0, -20)
 
   let cubeBodyArray = []
   let cubeMeshArray = []
@@ -39,7 +62,7 @@ const renderVisualizer = () => {
     70, // Field of view
     window.innerWidth / window.innerHeight, // Aspect ratio
     0.1, // Near clipping pane
-    2000 // Far clipping pane
+    400 // Far clipping pane
   )
 
   camera.position.set(0, -120, 60)
@@ -50,7 +73,7 @@ const renderVisualizer = () => {
 
   /*      RENDERER      */
   let renderer = new THREE.WebGLRenderer({antialias: true})
-  renderer.setSize(window.innerWidth, window.innerHeight)
+  renderer.setSize(window.innerWidth - 200, window.innerHeight - 100)
   renderer.setClearColor(0xfff6e6)
 
   // Enable shadow mapping
@@ -62,16 +85,24 @@ const renderVisualizer = () => {
 
   // Create Buttons
   let playButton = document.createElement('button')
+  playButton.className = 'main'
   playButton.innerText = 'Play Music'
 
   let stopButton = document.createElement('button')
+  stopButton.className = 'main'
   stopButton.innerText = 'Stop Music'
 
   let addCube = document.createElement('button')
+  addCube.className = 'main'
   addCube.innerText = 'Create Cube'
+
+  let nextSong = document.createElement('button')
+  nextSong.className = 'main'
+  nextSong.innerText = 'Next Song'
 
   document.body.appendChild(playButton)
   document.body.appendChild(stopButton)
+  document.body.appendChild(nextSong)
   document.body.appendChild(addCube)
 
   /*     AUDIO LISTENER    */
@@ -86,8 +117,9 @@ const renderVisualizer = () => {
   let audioLoader = new THREE.AudioLoader()
 
   /*      BUTTON LISTENERS     */
+  let trackId = 0
   playButton.onclick = () => {
-    audioLoader.load('/music/trash_panda.wav', function(buffer) {
+    audioLoader.load(songs[trackId], function(buffer) {
       sound.setBuffer(buffer)
       sound.setLoop(true)
       sound.setVolume(0.5)
@@ -99,20 +131,35 @@ const renderVisualizer = () => {
     sound.stop()
   }
 
-  let tempCube
+  nextSong.onclick = () => {
+    sound.stop()
+    if (trackId === songs.length - 1) {
+      trackId = 0
+    } else {
+      trackId++
+    }
+
+    audioLoader.load(songs[trackId], function(buffer) {
+      sound.setBuffer(buffer)
+      sound.setLoop(true)
+      sound.setVolume(0.5)
+      sound.play()
+    })
+  }
+
   addCube.onclick = () => {
     // CREATE the Cannon body of cube
-    let shape = new CANNON.Box(new CANNON.Vec3(3, 3, 3))
-    let body = new CANNON.Body({mass: 5})
+    let shape = new CANNON.Box(new CANNON.Vec3(8, 8, 8))
+    let body = new CANNON.Body({mass: 100})
     body.addShape(shape)
-    body.position.set(Math.random() * 20 - 10, Math.random() * 10, 80)
+    body.position.set(Math.random() * 40 - 20, 0, 80)
     world.addBody(body)
     cubeBodyArray.push(body)
 
     // CREATE the Three mesh of cube
-    let boxGeometry = new THREE.BoxGeometry(3, 3, 3)
-    let material = new THREE.MeshBasicMaterial({
-      color: 0x0000ff,
+    let boxGeometry = new THREE.BoxGeometry(8, 8, 8)
+    let material = new THREE.MeshLambertMaterial({
+      color: 0x88ffdc,
       flatShading: true
     })
     tempBox = new THREE.Mesh(boxGeometry, material)
@@ -120,12 +167,6 @@ const renderVisualizer = () => {
     tempBox.position.set(Math.random() * 20 - 10, Math.random() * 10, 80)
     scene.add(tempBox)
     cubeMeshArray.push(tempBox)
-
-    // let boxGround = new CANNON.ContactMaterial(groundMaterial, material, {
-    //     friction: 0.1,
-    //     restitution: 0.7
-    // })
-    // world.addContactMaterial(boxGround)
   }
 
   // create an AudioAnalyser, passing in the sound and desired fftSize
@@ -136,7 +177,7 @@ const renderVisualizer = () => {
 
   /*      LIGHTS     */
   // Add an ambient lights
-  let ambientLight = new THREE.AmbientLight(0xffffff, 0.2)
+  let ambientLight = new THREE.AmbientLight(0xffffff, 0.4)
   scene.add(ambientLight)
 
   // Add a point light that will cast shadows
@@ -151,17 +192,18 @@ const renderVisualizer = () => {
   // Creating boxes in Cannon and Three to serve as a grid plane
   let boxBodyArray = []
   let boxMeshArray = []
-  let material = new THREE.MeshBasicMaterial({color: 0x00ff00})
   let tempBox
   for (let i = 0; i < GRID_SIZE; i++) {
+    //console.log(colors[i])
+    let material = new THREE.MeshLambertMaterial({color: colors[i]})
     for (let j = 0; j < GRID_SIZE; j++) {
       // CREATE the Cannon body of grid boxes
       let boxShape = new CANNON.Box(new CANNON.Vec3(10, 10, 10))
       tempBox = new CANNON.Body({mass: 1})
       tempBox.addShape(boxShape)
       tempBox.position.set(
-        (j - GRID_SIZE / 2) * 12,
-        (GRID_SIZE / 2 - i) * 12,
+        (j - GRID_SIZE / 2) * 13,
+        (GRID_SIZE / 2 - i) * 13,
         0
       )
       world.addBody(tempBox)
@@ -169,55 +211,17 @@ const renderVisualizer = () => {
 
       // CREATE the Three mesh of grid boxes
 
-      //material.color += 0x0000aa;
       let boxGeometry = new THREE.BoxGeometry(10, 10, 10)
       tempBox = new THREE.Mesh(boxGeometry, material)
       tempBox.position.set(
-        (j - GRID_SIZE / 2) * 12,
-        (GRID_SIZE / 2 - i) * 12,
+        (j - GRID_SIZE / 2) * 13,
+        (GRID_SIZE / 2 - i) * 13,
         0
       )
       scene.add(tempBox)
       boxMeshArray.push(tempBox)
     }
   }
-
-  //   let groundMaterial = new CANNON.Material()
-  //   let ground = new CANNON.ContactMaterial(groundMaterial, material, {
-  //     friction: 0.0,
-  //     restitution: 0.7
-  //   })
-  //   world.addContactMaterial(ground)
-
-  /*     KEY CONTROLS      */
-  document.body.addEventListener('keydown', keyPressed)
-  function keyPressed(e) {
-    switch (e.keyCode) {
-      case 87:
-        cubeBodyArray[0].position.y += 1
-        break
-      case 83:
-        cubeBodyArray[0].position.y -= 1
-        break
-      case 65:
-        cubeBodyArray[0].position.x -= 1
-        break
-      case 68:
-        cubeBodyArray[0].position.x += 1
-        break
-    }
-    e.preventDefault()
-    renderer.render(scene, camera)
-  }
-  let flag
-  // Generate 100 random indexes
-  //   let mountainVertices = []
-  //   for (let i = 0; i < 100; i++) {
-  //     mountainVertices.push(
-  //       Math.floor(Math.random() * plane.geometry.vertices.length)
-  //     )
-  //   }
-  //   console.log(mountainVertices)
 
   /*        ANIMATE        */
   function animate() {
@@ -226,15 +230,16 @@ const renderVisualizer = () => {
     world.step(fixedTimeStep)
 
     // Update ground to push up objects
-    world.bodies[0].position.z = analyser.getAverageFrequency() * 0.15
+    world.bodies[0].position.z = analyser.getAverageFrequency() * 0.22
 
     for (let i = 0; i < boxBodyArray.length; i++) {
       boxBodyArray[i].position.z =
-        frequencyData[Math.floor(16 * i / boxBodyArray.length)] * 0.15
+        frequencyData[Math.floor(12 * i / boxBodyArray.length)] * 0.2
     }
 
     for (let i = 0; i < boxMeshArray.length; i++) {
       boxMeshArray[i].position.z = boxBodyArray[i].position.z
+
       boxMeshArray[i].geometry.verticesNeedUpdate = true
       boxMeshArray[i].geometry.normalsNeedUpdate = true
       boxMeshArray[i].geometry.computeVertexNormals()
