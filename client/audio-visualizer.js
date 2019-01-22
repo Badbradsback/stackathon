@@ -2,7 +2,7 @@ const THREE = require('three')
 const CANNON = require('cannon')
 let OrbitControls = require('three-orbit-controls')(THREE)
 
-const GRID_SIZE = 20
+const GRID_SIZE = 25
 
 const songs = [
   '/music/big_changes.mp3',
@@ -32,7 +32,12 @@ const colors = [
   0xffb333,
   0xffc863,
   0xffd563,
-  0xffe397
+  0xffe397,
+  0xffe397,
+  0xfff197,
+  0xfff327,
+  0xfff697,
+  0xfff997
 ]
 
 /*     SCENE      */
