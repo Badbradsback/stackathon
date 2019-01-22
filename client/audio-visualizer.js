@@ -3,6 +3,7 @@ const CANNON = require('cannon')
 let OrbitControls = require('three-orbit-controls')(THREE)
 
 const SPHERE_AMOUNT = 1
+const GRID_SIZE = 10
 
 /*     SCENE      */
 const renderVisualizer = () => {
@@ -10,25 +11,17 @@ const renderVisualizer = () => {
 
   //   PHYSICS SETUP
   let world = new CANNON.World()
+  //world.broadphase = new CANNON.NaiveBroadphase();
   world.gravity.set(0, 0, -9.82)
+  // world.solver.tolerance = 0.001;
 
-  let sphereBodyArray = []
-  for (let i = 0; i < SPHERE_AMOUNT; i++) {
-    sphereBodyArray.push(
-      new CANNON.Body({
-        mass: 5,
-        position: new CANNON.Vec3(
-          Math.random() * 20,
-          Math.random() * 20,
-          40 + Math.random() * 50
-        ),
-        shape: new CANNON.Sphere(2)
-      })
-    )
-    sphereBodyArray[i].linearDamping = 0.05
-    world.addBody(sphereBodyArray[i])
-  }
+  //   world.defaultContactMaterial.contactEquationStiffness = 5e6;
+  //   world.defaultContactMaterial.contactEquationRelaxation = 3;
 
+  let cubeBodyArray = []
+  let cubeMeshArray = []
+
+  // Create Ground planes
   let material1 = new CANNON.Material()
   let groundBody = new CANNON.Body({
     mass: 0, // mass == 0 makes the body static
@@ -36,6 +29,7 @@ const renderVisualizer = () => {
   })
   let groundShape = new CANNON.Plane()
   groundBody.addShape(groundShape)
+  groundBody.position.set(0, 0, 0)
   world.addBody(groundBody)
 
   let fixedTimeStep = 1.0 / 60.0 // seconds
@@ -48,7 +42,7 @@ const renderVisualizer = () => {
     2000 // Far clipping pane
   )
 
-  camera.position.set(0, -60, 60)
+  camera.position.set(0, -120, 60)
   //camera.rotation.y = Math.PI / 4;
   camera.lookAt(scene.position)
 
@@ -66,28 +60,34 @@ const renderVisualizer = () => {
   // Append to the document
   document.body.appendChild(renderer.domElement)
 
+  // Create Buttons
   let playButton = document.createElement('button')
   playButton.innerText = 'Play Music'
 
   let stopButton = document.createElement('button')
   stopButton.innerText = 'Stop Music'
 
+  let addCube = document.createElement('button')
+  addCube.innerText = 'Create Cube'
+
   document.body.appendChild(playButton)
   document.body.appendChild(stopButton)
+  document.body.appendChild(addCube)
 
   /*     AUDIO LISTENER    */
   // create an AudioListener and add it to the camera
-  var listener = new THREE.AudioListener()
+  let listener = new THREE.AudioListener()
   camera.add(listener)
 
   // create an Audio source
-  var sound = new THREE.Audio(listener)
+  let sound = new THREE.Audio(listener)
 
   // load a sound and set it as the Audio object's buffer
-  var audioLoader = new THREE.AudioLoader()
+  let audioLoader = new THREE.AudioLoader()
 
+  /*      BUTTON LISTENERS     */
   playButton.onclick = () => {
-    audioLoader.load('/music/purged.wav', function(buffer) {
+    audioLoader.load('/music/trash_panda.wav', function(buffer) {
       sound.setBuffer(buffer)
       sound.setLoop(true)
       sound.setVolume(0.5)
@@ -99,11 +99,40 @@ const renderVisualizer = () => {
     sound.stop()
   }
 
+  let tempCube
+  addCube.onclick = () => {
+    // CREATE the Cannon body of cube
+    let shape = new CANNON.Box(new CANNON.Vec3(3, 3, 3))
+    let body = new CANNON.Body({mass: 5})
+    body.addShape(shape)
+    body.position.set(Math.random() * 20 - 10, Math.random() * 10, 80)
+    world.addBody(body)
+    cubeBodyArray.push(body)
+
+    // CREATE the Three mesh of cube
+    let boxGeometry = new THREE.BoxGeometry(3, 3, 3)
+    let material = new THREE.MeshBasicMaterial({
+      color: 0x0000ff,
+      flatShading: true
+    })
+    tempBox = new THREE.Mesh(boxGeometry, material)
+    tempBox.castShadow = true
+    tempBox.position.set(Math.random() * 20 - 10, Math.random() * 10, 80)
+    scene.add(tempBox)
+    cubeMeshArray.push(tempBox)
+
+    // let boxGround = new CANNON.ContactMaterial(groundMaterial, material, {
+    //     friction: 0.1,
+    //     restitution: 0.7
+    // })
+    // world.addContactMaterial(boxGround)
+  }
+
   // create an AudioAnalyser, passing in the sound and desired fftSize
-  var analyser = new THREE.AudioAnalyser(sound, 32)
+  let analyser = new THREE.AudioAnalyser(sound, 32)
 
   // get the average frequency of the sound
-  var frequencyData = analyser.getAverageFrequency()
+  let frequencyData = analyser.getAverageFrequency()
 
   /*      LIGHTS     */
   // Add an ambient lights
@@ -119,125 +148,114 @@ const renderVisualizer = () => {
   scene.add(pointLight)
 
   /*    Plane    */
-  // A basic material that shows the geometry wireframe.
-  let planeGeometry1 = new THREE.PlaneGeometry(1000, 1000, 20, 20)
-  let planeMaterial = new THREE.MeshLambertMaterial({
-    color: 0xff5d00,
-    side: THREE.DoubleSide
-  })
-  let plane = new THREE.Mesh(planeGeometry1, planeMaterial)
-  plane.position.set(0, 0, -5)
-  scene.add(plane)
+  // Creating boxes in Cannon and Three to serve as a grid plane
+  let boxBodyArray = []
+  let boxMeshArray = []
+  let material = new THREE.MeshBasicMaterial({color: 0x00ff00})
+  let tempBox
+  for (let i = 0; i < GRID_SIZE; i++) {
+    for (let j = 0; j < GRID_SIZE; j++) {
+      // CREATE the Cannon body of grid boxes
+      let boxShape = new CANNON.Box(new CANNON.Vec3(10, 10, 10))
+      tempBox = new CANNON.Body({mass: 1})
+      tempBox.addShape(boxShape)
+      tempBox.position.set(
+        (j - GRID_SIZE / 2) * 12,
+        (GRID_SIZE / 2 - i) * 12,
+        0
+      )
+      world.addBody(tempBox)
+      boxBodyArray.push(tempBox)
 
-  let groundMaterial = new CANNON.Material()
-  let ground = new CANNON.ContactMaterial(groundMaterial, planeMaterial, {
-    friction: 0.0,
-    restitution: 0.7
-  })
-  world.addContactMaterial(ground)
+      // CREATE the Three mesh of grid boxes
 
-  /*    GEOMETRY    */
-
-  let sphereMeshArray = []
-  for (let i = 0; i < SPHERE_AMOUNT; i++) {
-    var geometry = new THREE.SphereGeometry(5, 32, 32)
-    var material = new THREE.MeshBasicMaterial({color: 0xffff00})
-    sphereMeshArray.push(new THREE.Mesh(geometry, material))
-    sphereMeshArray[i].castShadow = true
-    scene.add(sphereMeshArray[i])
+      //material.color += 0x0000aa;
+      let boxGeometry = new THREE.BoxGeometry(10, 10, 10)
+      tempBox = new THREE.Mesh(boxGeometry, material)
+      tempBox.position.set(
+        (j - GRID_SIZE / 2) * 12,
+        (GRID_SIZE / 2 - i) * 12,
+        0
+      )
+      scene.add(tempBox)
+      boxMeshArray.push(tempBox)
+    }
   }
+
+  //   let groundMaterial = new CANNON.Material()
+  //   let ground = new CANNON.ContactMaterial(groundMaterial, material, {
+  //     friction: 0.0,
+  //     restitution: 0.7
+  //   })
+  //   world.addContactMaterial(ground)
 
   /*     KEY CONTROLS      */
   document.body.addEventListener('keydown', keyPressed)
   function keyPressed(e) {
     switch (e.keyCode) {
       case 87:
-        sphereBodyArray[0].position.y += 1
+        cubeBodyArray[0].position.y += 1
         break
       case 83:
-        sphereBodyArray[0].position.y -= 1
+        cubeBodyArray[0].position.y -= 1
         break
       case 65:
-        sphereBodyArray[0].position.x -= 1
+        cubeBodyArray[0].position.x -= 1
         break
       case 68:
-        sphereBodyArray[0].position.x += 1
+        cubeBodyArray[0].position.x += 1
         break
     }
     e.preventDefault()
     renderer.render(scene, camera)
   }
-
+  let flag
   // Generate 100 random indexes
-  let mountainVertices = []
-  for (let i = 0; i < 100; i++) {
-    mountainVertices.push(
-      Math.floor(Math.random() * plane.geometry.vertices.length)
-    )
-  }
-  console.log(mountainVertices)
+  //   let mountainVertices = []
+  //   for (let i = 0; i < 100; i++) {
+  //     mountainVertices.push(
+  //       Math.floor(Math.random() * plane.geometry.vertices.length)
+  //     )
+  //   }
+  //   console.log(mountainVertices)
 
   /*        ANIMATE        */
   function animate() {
     requestAnimationFrame(animate)
-    frequencyData = analyser.getAverageFrequency()
+    frequencyData = analyser.getFrequencyData()
     world.step(fixedTimeStep)
 
-    for (let i = 0; i < SPHERE_AMOUNT; i++) {
-      sphereMeshArray[i].position.x = sphereBodyArray[i].position.x
-      sphereMeshArray[i].position.y = sphereBodyArray[i].position.y
-      sphereMeshArray[i].position.z = sphereBodyArray[i].position.z
-      sphereMeshArray[i].quaternion.x = sphereBodyArray[i].quaternion.x
-      sphereMeshArray[i].quaternion.y = sphereBodyArray[i].quaternion.y
-      sphereMeshArray[i].quaternion.z = sphereBodyArray[i].quaternion.z
-      sphereMeshArray[i].quaternion.w = sphereBodyArray[i].quaternion.w
+    // Update ground to push up objects
+    world.bodies[0].position.z = analyser.getAverageFrequency() * 0.15
+
+    for (let i = 0; i < boxBodyArray.length; i++) {
+      boxBodyArray[i].position.z =
+        frequencyData[Math.floor(16 * i / boxBodyArray.length)] * 0.15
     }
 
-    /*    Collision Detection     */
-    // for (let i = 0; i < sphereMeshArray[0].geometry.vertices.length; i++) {
-    //   let localVertex = sphereMeshArray[0].geometry.vertices[i].clone()
-    //   let globalVertex = localVertex.applyMatrix4(sphereMeshArray[0].matrix)
-    //   let directionVector = globalVertex.sub(sphereMeshArray[0].position)
+    for (let i = 0; i < boxMeshArray.length; i++) {
+      boxMeshArray[i].position.z = boxBodyArray[i].position.z
+      boxMeshArray[i].geometry.verticesNeedUpdate = true
+      boxMeshArray[i].geometry.normalsNeedUpdate = true
+      boxMeshArray[i].geometry.computeVertexNormals()
+      boxMeshArray[i].geometry.computeFaceNormals()
+    }
 
-    //   let ray = new THREE.Raycaster(
-    //     sphereMeshArray[0].position,
-    //     directionVector.clone().normalize()
-    //   )
-    //   let collisionResults = ray.intersectObjects(scene.children)
-    //   if (
-    //     collisionResults.length > 0 &&
-    //     collisionResults[0].distance < directionVector.length()
-    //   ) {
-    //     console.log('-------COLLISION------')
-    //   }
-    // }
+    for (let i = 0; i < cubeMeshArray.length; i++) {
+      cubeMeshArray[i].position.x = cubeBodyArray[i].position.x
+      cubeMeshArray[i].position.y = cubeBodyArray[i].position.y
+      cubeMeshArray[i].position.z = cubeBodyArray[i].position.z
+      cubeMeshArray[i].quaternion.x = cubeBodyArray[i].quaternion.x
+      cubeMeshArray[i].quaternion.y = cubeBodyArray[i].quaternion.y
+      cubeMeshArray[i].quaternion.z = cubeBodyArray[i].quaternion.z
+      cubeMeshArray[i].quaternion.w = cubeBodyArray[i].quaternion.w
 
-    /*      Plane Music Transformations     */
-    let vertices
-    let prevHigh = 0
-    mountainVertices.forEach(index => {
-      vertices = plane.geometry.vertices
-      if (
-        frequencyData > 80 &&
-        frequencyData >= prevHigh &&
-        vertices[index].z < 130
-      ) {
-        vertices[index].z += frequencyData * 0.05
-      } else if (frequencyData > 40 && frequencyData >= prevHigh) {
-        vertices[index].z -= frequencyData * 0.03
-      } else if (vertices[index].z > 0) {
-        vertices[index].z -= frequencyData * 0.1
-      }
-      prevHigh = frequencyData
-    })
-    //console.log(mountainVertices);
-    plane.geometry.verticesNeedUpdate = true
-    plane.geometry.normalsNeedUpdate = true
-    plane.geometry.computeVertexNormals()
-    plane.geometry.computeFaceNormals()
+      cubeMeshArray[i].geometry.verticesNeedUpdate = true
+      cubeMeshArray[i].geometry.normalsNeedUpdate = true
+      cubeMeshArray[i].geometry.computeVertexNormals()
+      cubeMeshArray[i].geometry.computeFaceNormals()
+    }
 
-    // console.log('Frequency Data');
-    // console.log(frequencyData);
     controls.update()
     renderer.render(scene, camera)
   }
