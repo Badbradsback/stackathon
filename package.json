@@ -1,7 +1,7 @@
 {
-  "name": "audio-visualizer",
-  "version": "1.0.0",
-  "description": "Let's see what that music looks like!",
+  "name": "B.R.A.D.",
+  "version": "0.7.1",
+  "description": "Brad's Radical Audio Demo",
   "engines": {
     "node": ">= 7.0.0"
   },

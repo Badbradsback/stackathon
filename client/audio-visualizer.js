@@ -80,7 +80,7 @@ const renderVisualizer = () => {
   /*      RENDERER      */
   let renderer = new THREE.WebGLRenderer({antialias: true})
   renderer.setSize(window.innerWidth - 200, window.innerHeight - 100)
-  renderer.setClearColor(0xfff6e6)
+  //renderer.setClearColor(0xfff6e6)
 
   // Enable shadow mapping
   renderer.shadowMap.enabled = true
@@ -191,8 +191,8 @@ const renderVisualizer = () => {
 
   /*      LIGHTS     */
   // Add an ambient lights
-  // let ambientLight = new THREE.AmbientLight(0xffffff, 0.4)
-  // scene.add(ambientLight)
+  let ambientLight = new THREE.AmbientLight(0xffffff, 0.4)
+  scene.add(ambientLight)
 
   // Add a point light that will cast shadows
   let pointLight = new THREE.PointLight(0xffffff, 1)
@@ -244,7 +244,7 @@ const renderVisualizer = () => {
     world.step(fixedTimeStep)
 
     // Update ground to push up objects
-    world.bodies[0].position.z = analyser.getAverageFrequency() * 0.24
+    world.bodies[0].position.z = analyser.getAverageFrequency() * 0.26
 
     for (let i = 0; i < boxBodyArray.length; i++) {
       boxBodyArray[i].position.z =
